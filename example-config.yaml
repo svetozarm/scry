@@ -1,0 +1,4 @@
+provider: ollama
+model_id: qwen3.5:latest
+provider_config:
+  endpoint: http://localhost:11434
