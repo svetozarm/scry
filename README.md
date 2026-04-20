@@ -1,5 +1,7 @@
 # Scry
 
+> one LLM call, no agent, no runtime, no background daemon, works offline
+
 A single-binary CLI that generates commit messages from your staged changes using an LLM. Stage your changes, run `scry`, and get a well-crafted conventional commit message — accept it, regenerate, or cancel.
 
 ![Scry demo](https://github.com/user-attachments/assets/1f38a405-0bca-45c2-8e1d-7ed3eae16bab)
