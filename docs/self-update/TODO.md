@@ -35,8 +35,8 @@
 - [x] 5.2 Implement `isNewer()` semver comparison
 - [x] 5.3 Implement `deriveAssetName()` using runtime.GOOS/GOARCH
 - [x] 5.4 Implement write permission check
-- [ ] 5.5 Wire together: version check → download → verify → replace → cleanup
-- [ ] 5.6 Write orchestrator tests with mocked `ReleaseChecker`
+- [x] 5.5 Wire together: version check → download → verify → replace → cleanup
+- [x] 5.6 Write orchestrator tests with mocked `ReleaseChecker`
 
 ## Phase 6: CLI Integration
 
