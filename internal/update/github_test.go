@@ -2,13 +2,17 @@ package update
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestReleaseChecker_InterfaceCompliance(t *testing.T) {
-	// Verify GitHubClient implements ReleaseChecker
 	var _ ReleaseChecker = (*GitHubClient)(nil)
 }
 
@@ -19,30 +23,87 @@ func TestNewGitHubClient(t *testing.T) {
 	assert.Equal(t, "owner/repo", client.repo)
 }
 
-func TestRelease_HasExpectedFields(t *testing.T) {
-	r := Release{
-		Tag: "v1.2.3",
-		Assets: []Asset{
-			{Name: "scry_1.2.3_linux_amd64.tar.gz", URL: "https://example.com/asset"},
-		},
-	}
-	assert.Equal(t, "v1.2.3", r.Tag)
-	assert.Len(t, r.Assets, 1)
-	assert.Equal(t, "scry_1.2.3_linux_amd64.tar.gz", r.Assets[0].Name)
-	assert.Equal(t, "https://example.com/asset", r.Assets[0].URL)
+func TestLatestRelease_Success(t *testing.T) {
+	body := `{
+		"tag_name": "v1.4.0",
+		"assets": [
+			{"name": "scry_1.4.0_linux_amd64.tar.gz", "browser_download_url": "https://example.com/linux.tar.gz"},
+			{"name": "scry_1.4.0_darwin_arm64.tar.gz", "browser_download_url": "https://example.com/darwin.tar.gz"}
+		]
+	}`
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/repos/owner/repo/releases/latest", r.URL.Path)
+		assert.Equal(t, "application/vnd.github+json", r.Header.Get("Accept"))
+		fmt.Fprint(w, body)
+	}))
+	defer srv.Close()
+
+	client := NewGitHubClient("owner/repo")
+	client.baseURL = srv.URL
+
+	rel, err := client.LatestRelease(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, "v1.4.0", rel.Tag)
+	assert.Len(t, rel.Assets, 2)
+	assert.Equal(t, "scry_1.4.0_linux_amd64.tar.gz", rel.Assets[0].Name)
+	assert.Equal(t, "https://example.com/linux.tar.gz", rel.Assets[0].URL)
 }
 
-// Stub methods to satisfy interface — will be properly implemented in 2.2/2.3
-func TestGitHubClient_LatestRelease_NotImplementedYet(t *testing.T) {
-	client := NewGitHubClient("svetozarm/scry")
+func TestLatestRelease_Non200(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer srv.Close()
+
+	client := NewGitHubClient("owner/repo")
+	client.baseURL = srv.URL
+
 	_, err := client.LatestRelease(context.Background())
-	// For now just verify it doesn't panic; real tests come in 2.2
-	_ = err
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, ErrUpdateAPI))
 }
 
-func TestGitHubClient_DownloadAsset_NotImplementedYet(t *testing.T) {
-	client := NewGitHubClient("svetozarm/scry")
-	err := client.DownloadAsset(context.Background(), "http://example.com", "/tmp/test")
-	// For now just verify it doesn't panic; real tests come in 2.3
-	_ = err
+func TestLatestRelease_RateLimited(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+	}))
+	defer srv.Close()
+
+	client := NewGitHubClient("owner/repo")
+	client.baseURL = srv.URL
+
+	_, err := client.LatestRelease(context.Background())
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, ErrUpdateAPI))
+}
+
+func TestLatestRelease_MalformedJSON(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "not json at all{{{")
+	}))
+	defer srv.Close()
+
+	client := NewGitHubClient("owner/repo")
+	client.baseURL = srv.URL
+
+	_, err := client.LatestRelease(context.Background())
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, ErrUpdateAPI))
+}
+
+func TestLatestRelease_CancelledContext(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `{"tag_name":"v1.0.0","assets":[]}`)
+	}))
+	defer srv.Close()
+
+	client := NewGitHubClient("owner/repo")
+	client.baseURL = srv.URL
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := client.LatestRelease(ctx)
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, ErrUpdateAPI))
 }
