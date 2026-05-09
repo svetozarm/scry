@@ -50,6 +50,6 @@
 ## Phase 7: Verification & Cleanup
 
 - [x] 7.1 Run full test suite, verify all pass
-- [ ] 7.2 Manual test: build with version, tag, run `scry update`
+- [x] 7.2 Manual test: build with version, tag, run `scry update`
 - [ ] 7.3 Verify cross-compilation still works for all 6 platforms
 - [ ] 7.4 Update README with `scry update` documentation
