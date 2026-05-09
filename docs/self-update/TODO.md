@@ -4,7 +4,7 @@
 
 - [x] 1.1 Add `var version string` to `main.go`, pass to `cmd` package
 - [x] 1.2 Update `Makefile` to inject version via `-ldflags "-X main.version=..."`
-- [ ] 1.3 Update `.goreleaser.yaml` to inject version via ldflags
+- [x] 1.3 Update `.goreleaser.yaml` to inject version via ldflags
 - [x] 1.4 Create `internal/update/errors.go` with sentinel errors
 - [x] 1.5 Write tests for error type matching
 
