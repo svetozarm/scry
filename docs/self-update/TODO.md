@@ -17,10 +17,10 @@
 
 ## Phase 3: Checksum Verification
 
-- [ ] 3.1 Create `internal/update/checksum.go` with `VerifyChecksum()`
-- [ ] 3.2 Implement checksums.txt parsing (GoReleaser format)
-- [ ] 3.3 Implement SHA-256 computation and comparison
-- [ ] 3.4 Write tests (match, mismatch, missing entry, malformed file)
+- [x] 3.1 Create `internal/update/checksum.go` with `VerifyChecksum()`
+- [x] 3.2 Implement checksums.txt parsing (GoReleaser format)
+- [x] 3.3 Implement SHA-256 computation and comparison
+- [x] 3.4 Write tests (match, mismatch, missing entry, malformed file)
 
 ## Phase 4: Binary Replacement
 
