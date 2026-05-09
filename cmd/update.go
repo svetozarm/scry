@@ -12,6 +12,11 @@ import (
 
 const repo = "svetozarm/scry"
 
+// newChecker creates a ReleaseChecker; overridable for testing.
+var newChecker = func() update.ReleaseChecker {
+	return update.NewGitHubClient(repo)
+}
+
 var updateCmd = &cobra.Command{
 	Use:   "update",
 	Short: "Update scry to the latest version",
@@ -24,7 +29,7 @@ func init() {
 
 func runUpdate(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
-	checker := update.NewGitHubClient(repo)
+	checker := newChecker()
 	result, err := update.Run(ctx, Version, checker)
 	if err != nil {
 		if errors.Is(err, update.ErrDevBuild) {
