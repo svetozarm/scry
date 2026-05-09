@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -106,4 +108,61 @@ func TestLatestRelease_CancelledContext(t *testing.T) {
 	_, err := client.LatestRelease(ctx)
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, ErrUpdateAPI))
+}
+
+func TestDownloadAsset_Success(t *testing.T) {
+	content := []byte("binary content here 1234567890")
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write(content)
+	}))
+	defer srv.Close()
+
+	client := NewGitHubClient("owner/repo")
+	dest := filepath.Join(t.TempDir(), "downloaded_file")
+
+	err := client.DownloadAsset(context.Background(), srv.URL+"/asset.tar.gz", dest)
+	require.NoError(t, err)
+
+	got, err := os.ReadFile(dest)
+	require.NoError(t, err)
+	assert.Equal(t, content, got)
+}
+
+func TestDownloadAsset_Non200(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer srv.Close()
+
+	client := NewGitHubClient("owner/repo")
+	dest := filepath.Join(t.TempDir(), "downloaded_file")
+
+	err := client.DownloadAsset(context.Background(), srv.URL+"/missing", dest)
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, ErrUpdateAPI))
+
+	_, statErr := os.Stat(dest)
+	assert.True(t, os.IsNotExist(statErr))
+}
+
+func TestDownloadAsset_CancelledContext(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("data"))
+	}))
+	defer srv.Close()
+
+	client := NewGitHubClient("owner/repo")
+	dir := t.TempDir()
+	dest := filepath.Join(dir, "downloaded_file")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := client.DownloadAsset(ctx, srv.URL+"/asset", dest)
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, ErrUpdateAPI))
+
+	// Verify no temp files left behind
+	entries, _ := os.ReadDir(dir)
+	assert.Empty(t, entries)
 }

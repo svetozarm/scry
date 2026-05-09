@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -82,6 +85,43 @@ func (c *GitHubClient) LatestRelease(ctx context.Context) (*Release, error) {
 }
 
 func (c *GitHubClient) DownloadAsset(ctx context.Context, url string, dest string) error {
-	// TODO: implement in task 2.3
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrUpdateAPI, err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrUpdateAPI, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("%w: HTTP %d", ErrUpdateAPI, resp.StatusCode)
+	}
+
+	dir := filepath.Dir(dest)
+	tmp, err := os.CreateTemp(dir, ".scry-download-*")
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrUpdateAPI, err)
+	}
+	tmpPath := tmp.Name()
+
+	if _, err := io.Copy(tmp, resp.Body); err != nil {
+		tmp.Close()
+		os.Remove(tmpPath)
+		return fmt.Errorf("%w: %v", ErrUpdateAPI, err)
+	}
+
+	if err := tmp.Close(); err != nil {
+		os.Remove(tmpPath)
+		return fmt.Errorf("%w: %v", ErrUpdateAPI, err)
+	}
+
+	if err := os.Rename(tmpPath, dest); err != nil {
+		os.Remove(tmpPath)
+		return fmt.Errorf("%w: %v", ErrUpdateAPI, err)
+	}
+
 	return nil
 }
