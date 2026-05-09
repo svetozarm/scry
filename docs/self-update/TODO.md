@@ -31,8 +31,8 @@
 
 ## Phase 5: Update Orchestrator
 
-- [ ] 5.1 Create `internal/update/update.go` with `Run()` function
-- [ ] 5.2 Implement `isNewer()` semver comparison
+- [x] 5.1 Create `internal/update/update.go` with `Run()` function
+- [x] 5.2 Implement `isNewer()` semver comparison
 - [ ] 5.3 Implement `deriveAssetName()` using runtime.GOOS/GOARCH
 - [ ] 5.4 Implement write permission check
 - [ ] 5.5 Wire together: version check → download → verify → replace → cleanup
