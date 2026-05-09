@@ -77,6 +77,7 @@ func TestLatestRelease_RateLimited(t *testing.T) {
 	_, err := client.LatestRelease(context.Background())
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, ErrUpdateAPI))
+	assert.Contains(t, err.Error(), "403")
 }
 
 func TestLatestRelease_MalformedJSON(t *testing.T) {
@@ -157,6 +158,29 @@ func TestDownloadAsset_CancelledContext(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
+
+	err := client.DownloadAsset(ctx, srv.URL+"/asset", dest)
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, ErrUpdateAPI))
+
+	// Verify no temp files left behind
+	entries, _ := os.ReadDir(dir)
+	assert.Empty(t, entries)
+}
+
+func TestDownloadAsset_InterruptedMidTransfer(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.(http.Flusher).Flush()
+		// Cancel context while transfer is in progress
+		cancel()
+	}))
+	defer srv.Close()
+
+	client := NewGitHubClient("owner/repo")
+	dir := t.TempDir()
+	dest := filepath.Join(dir, "downloaded_file")
 
 	err := client.DownloadAsset(ctx, srv.URL+"/asset", dest)
 	require.Error(t, err)

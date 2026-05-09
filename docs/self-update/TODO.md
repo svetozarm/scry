@@ -13,7 +13,7 @@
 - [x] 2.1 Create `internal/update/github.go` with `ReleaseChecker` interface
 - [x] 2.2 Implement `GitHubClient` struct with `LatestRelease()`
 - [x] 2.3 Implement `DownloadAsset()` with temp file + cleanup
-- [ ] 2.4 Write tests using `httptest.Server` (success, non-200, timeout, malformed JSON)
+- [x] 2.4 Write tests using `httptest.Server` (success, non-200, timeout, malformed JSON)
 
 ## Phase 3: Checksum Verification
 
