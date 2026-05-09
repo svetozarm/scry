@@ -34,10 +34,12 @@ func setupUpdateTest(t *testing.T, version string, checker update.ReleaseChecker
 	origVersion := Version
 	origChecker := newChecker
 	origNI := nonInteractive
+	origRunFn := runUpdateFn
 	t.Cleanup(func() {
 		Version = origVersion
 		newChecker = origChecker
 		nonInteractive = origNI
+		runUpdateFn = origRunFn
 	})
 
 	Version = version
@@ -88,4 +90,15 @@ func TestUpdate_NonInteractive_APIError(t *testing.T) {
 
 	assertSilentError(t, execErr, 5)
 	assert.Contains(t, stderr, "update failed: could not reach GitHub")
+}
+
+func TestUpdate_NonInteractive_Success(t *testing.T) {
+	stdout := setupUpdateTest(t, "v1.0.0", &mockReleaseChecker{})
+	runUpdateFn = func(_ context.Context, _ string, _ update.ReleaseChecker) (*update.Result, error) {
+		return &update.Result{OldVersion: "v1.0.0", NewVersion: "v2.0.0"}, nil
+	}
+
+	err := rootCmd.Execute()
+	require.NoError(t, err)
+	assert.Equal(t, "Updated: v1.0.0 → v2.0.0\n", stdout.String())
 }

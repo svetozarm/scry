@@ -44,8 +44,8 @@
 - [x] 6.2 Register `updateCmd` on `rootCmd`
 - [x] 6.3 Add update error mappings to `cmd/errors.go` (exit code 5)
 - [x] 6.4 Handle non-interactive mode (plain text output)
-- [ ] 6.5 Handle `ErrDevBuild` as warning (exit 0)
-- [ ] 6.6 Write CLI integration tests
+- [x] 6.5 Handle `ErrDevBuild` as warning (exit 0)
+- [x] 6.6 Write CLI integration tests
 
 ## Phase 7: Verification & Cleanup
 

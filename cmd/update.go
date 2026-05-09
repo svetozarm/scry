@@ -17,6 +17,9 @@ var newChecker = func() update.ReleaseChecker {
 	return update.NewGitHubClient(repo)
 }
 
+// runUpdateFn wraps update.Run; overridable for testing.
+var runUpdateFn = update.Run
+
 var updateCmd = &cobra.Command{
 	Use:   "update",
 	Short: "Update scry to the latest version",
@@ -30,7 +33,7 @@ func init() {
 func runUpdate(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 	checker := newChecker()
-	result, err := update.Run(ctx, Version, checker)
+	result, err := runUpdateFn(ctx, Version, checker)
 	if err != nil {
 		if errors.Is(err, update.ErrDevBuild) {
 			if nonInteractive {
