@@ -27,7 +27,7 @@
 - [x] 4.1 Create `internal/update/replace.go` with Unix strategy (tar.gz extraction + atomic rename)
 - [x] 4.2 Create `internal/update/replace_windows.go` with Windows rename-and-replace strategy
 - [x] 4.3 Implement archive format detection (tar.gz vs zip by extension)
-- [ ] 4.4 Write tests (extraction, permissions, read-only directory failure)
+- [x] 4.4 Write tests (extraction, permissions, read-only directory failure)
 
 ## Phase 5: Update Orchestrator
 
