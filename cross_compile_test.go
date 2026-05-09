@@ -16,6 +16,7 @@ func TestCrossCompilation(t *testing.T) {
 		{"darwin", "amd64", ""},
 		{"darwin", "arm64", ""},
 		{"windows", "amd64", ".exe"},
+		{"windows", "arm64", ".exe"},
 	}
 
 	for _, tgt := range targets {
