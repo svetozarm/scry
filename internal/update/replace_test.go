@@ -94,3 +94,13 @@ func TestReplaceBinary_CleansUpTempOnFailure(t *testing.T) {
 	entries, _ := os.ReadDir(dir)
 	assert.Empty(t, entries)
 }
+
+func TestReplaceBinary_WrongArchiveFormat(t *testing.T) {
+	dir := t.TempDir()
+	targetPath := filepath.Join(dir, "scry")
+	require.NoError(t, os.WriteFile(targetPath, []byte("old"), 0755))
+
+	err := ReplaceBinary("/tmp/archive.zip", targetPath)
+	assert.ErrorIs(t, err, ErrReplaceFailed)
+	assert.Contains(t, err.Error(), "expected .tar.gz archive")
+}

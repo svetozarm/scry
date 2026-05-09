@@ -13,6 +13,10 @@ import (
 // ReplaceBinary extracts the scry.exe binary from a zip archive and
 // replaces the executable at binaryPath using rename-and-replace.
 func ReplaceBinary(archivePath, binaryPath string) error {
+	if !isZip(archivePath) {
+		return fmt.Errorf("%w: expected .zip archive, got: %s", ErrReplaceFailed, archivePath)
+	}
+
 	zr, err := zip.OpenReader(archivePath)
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrReplaceFailed, err)

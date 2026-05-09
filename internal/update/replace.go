@@ -14,6 +14,10 @@ import (
 // ReplaceBinary extracts the scry binary from a tar.gz archive and
 // atomically replaces the executable at binaryPath.
 func ReplaceBinary(archivePath, binaryPath string) error {
+	if !isTarGz(archivePath) {
+		return fmt.Errorf("%w: expected .tar.gz archive, got: %s", ErrReplaceFailed, archivePath)
+	}
+
 	f, err := os.Open(archivePath)
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrReplaceFailed, err)
