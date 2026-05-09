@@ -15,6 +15,7 @@ type Config struct {
 	ModelID               string            `yaml:"model_id"`
 	Prompt                string            `yaml:"prompt"`
 	DiffSummaryThreshold  int               `yaml:"diff_summary_threshold"`
+	SummaryConcurrency    int               `yaml:"summary_concurrency"`
 	ProviderConfig        map[string]string `yaml:"provider_config"`
 }
 
@@ -42,6 +43,9 @@ func merge(base, overlay Config) Config {
 	}
 	if overlay.DiffSummaryThreshold != 0 {
 		base.DiffSummaryThreshold = overlay.DiffSummaryThreshold
+	}
+	if overlay.SummaryConcurrency != 0 {
+		base.SummaryConcurrency = overlay.SummaryConcurrency
 	}
 	if overlay.ProviderConfig != nil {
 		merged := make(map[string]string, len(base.ProviderConfig)+len(overlay.ProviderConfig))

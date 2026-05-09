@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"charm.land/lipgloss/v2"
 	"github.com/svetozarm/scry/internal/provider"
@@ -22,6 +23,16 @@ func DisplayError(err error) {
 // DisplayWarning renders a styled warning message to stderr.
 func DisplayWarning(msg string) {
 	lipgloss.Fprintln(os.Stderr, WarningStyle.Render("Warning: "+msg))
+}
+
+// DisplayProgress renders a styled progress message to stderr.
+func DisplayProgressBar(completed, total int, lastFile string) {
+	const barWidth = 20
+	filled := barWidth * completed / total
+	bar := strings.Repeat("█", filled) + strings.Repeat("░", barWidth-filled)
+	line := fmt.Sprintf("  %s %d/%d %s", bar, completed, total, lastFile)
+	// Clear line and overwrite in place
+	fmt.Fprintf(os.Stderr, "\r\033[K%s", line)
 }
 
 // DisplayCommitResult renders the git commit output with a success indicator.

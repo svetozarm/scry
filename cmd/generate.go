@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sync"
 
 	"github.com/spf13/cobra"
 
@@ -119,32 +120,90 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 	}
 }
 
-// summarizeFiles gets per-file diffs and summarizes each one via the LLM.
+// summarizeFiles gets per-file diffs and summarizes each one via the LLM
+// using a worker pool of cfg.SummaryConcurrency goroutines.
 func summarizeFiles(ctx context.Context, cwd string, p provider.Provider, cfg *config.Config, quiet bool) (map[string]string, error) {
 	files, err := git.DiffFileNames(cwd)
 	if err != nil {
 		return nil, err
 	}
 
-	if !quiet {
-		ui.DisplayWarning(fmt.Sprintf("Large diff detected (%d files). Summarizing per-file changes first...", len(files)))
-	} else {
-		fmt.Fprintf(os.Stderr, "Warning: large diff detected (%d files), summarizing per-file changes first\n", len(files))
+	total := len(files)
+	concurrency := cfg.SummaryConcurrency
+	if concurrency <= 0 {
+		concurrency = 1
 	}
 
-	summaries := make(map[string]string, len(files))
-	for _, file := range files {
-		fileDiff, err := git.DiffFile(cwd, file)
-		if err != nil {
-			return nil, err
-		}
+	if !quiet {
+		ui.DisplayWarning(fmt.Sprintf("Large diff detected (%d files). Summarizing per-file with %d workers...", total, concurrency))
+	} else {
+		fmt.Fprintf(os.Stderr, "Warning: large diff detected (%d files), summarizing per-file with %d workers\n", total, concurrency)
+	}
 
-		summaryPrompt := prompt.SummaryPrompt(file, fileDiff)
-		summary, err := p.Invoke(ctx, cfg.ModelID, summaryPrompt)
-		if err != nil {
-			return nil, err
+	type result struct {
+		file    string
+		summary string
+		err     error
+	}
+
+	var (
+		mu        sync.Mutex
+		completed int
+	)
+
+	progress := func(file string) {
+		mu.Lock()
+		completed++
+		n := completed
+		mu.Unlock()
+		if !quiet {
+			ui.DisplayProgressBar(n, total, file)
+		} else {
+			fmt.Fprintf(os.Stderr, "[%d/%d] Done: %s\n", n, total, file)
 		}
-		summaries[file] = summary
+	}
+
+	results := make([]result, total)
+	sem := make(chan struct{}, concurrency)
+	var wg sync.WaitGroup
+
+	for i, file := range files {
+		wg.Add(1)
+		go func(idx int, f string) {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			fileDiff, err := git.DiffFile(cwd, f)
+			if err != nil {
+				results[idx] = result{file: f, err: err}
+				return
+			}
+
+			summaryPrompt := prompt.SummaryPrompt(f, fileDiff)
+			summary, err := p.Invoke(ctx, cfg.ModelID, summaryPrompt)
+			if err != nil {
+				results[idx] = result{file: f, err: err}
+				return
+			}
+
+			progress(f)
+			results[idx] = result{file: f, summary: summary}
+		}(i, file)
+	}
+
+	wg.Wait()
+
+	if !quiet {
+		fmt.Fprint(os.Stderr, "\n")
+	}
+
+	summaries := make(map[string]string, total)
+	for _, r := range results {
+		if r.err != nil {
+			return nil, r.err
+		}
+		summaries[r.file] = r.summary
 	}
 	return summaries, nil
 }

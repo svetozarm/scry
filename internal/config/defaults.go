@@ -3,8 +3,9 @@ package config
 // Defaults contains the built-in default configuration values.
 var Defaults = Config{
 	Provider:             "bedrock",
-	ModelID:              "global.amazon.nova-2-lite-v1:0",
+	ModelID:              "openai.gpt-oss-20b-1:0",
 	DiffSummaryThreshold: 32000,
+	SummaryConcurrency:   20,
 	Prompt: `<type>(<scope>): <short summary>
 
 <optional body>

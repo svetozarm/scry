@@ -72,12 +72,13 @@ func (p *BedrockProvider) Invoke(ctx context.Context, modelID string, prompt str
 		return "", fmt.Errorf("unexpected response format")
 	}
 
-	text, ok := msg.Value.Content[0].(*types.ContentBlockMemberText)
-	if !ok {
-		return "", fmt.Errorf("unexpected content block type")
+	for _, block := range msg.Value.Content {
+		if text, ok := block.(*types.ContentBlockMemberText); ok {
+			return text.Value, nil
+		}
 	}
 
-	return text.Value, nil
+	return "", fmt.Errorf("no text content block in response")
 }
 
 // mapError converts AWS SDK errors to typed provider errors.

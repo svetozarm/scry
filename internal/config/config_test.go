@@ -40,7 +40,7 @@ func TestConfigYAMLPartial(t *testing.T) {
 
 func TestDefaults(t *testing.T) {
 	assert.Equal(t, "bedrock", Defaults.Provider)
-	assert.Equal(t, "global.amazon.nova-2-lite-v1:0", Defaults.ModelID)
+	assert.Equal(t, "openai.gpt-oss-20b-1:0", Defaults.ModelID)
 	assert.NotEmpty(t, Defaults.Prompt)
 	assert.Contains(t, Defaults.Prompt, "{{branch_name}}")
 	assert.Contains(t, Defaults.Prompt, "{{author}}")
