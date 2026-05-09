@@ -109,3 +109,37 @@ func TestCommit_Failure(t *testing.T) {
 	assert.ErrorAs(t, err, &commitErr)
 	assert.NotEmpty(t, commitErr.Output)
 }
+
+func TestDiffFileNames_ReturnsFileList(t *testing.T) {
+	dir := t.TempDir()
+	runGit(t, dir, "init")
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.txt"), []byte("aaa"), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "b.txt"), []byte("bbb"), 0644))
+	runGit(t, dir, "add", "a.txt", "b.txt")
+
+	files, err := DiffFileNames(dir)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{"a.txt", "b.txt"}, files)
+}
+
+func TestDiffFileNames_NoStagedFiles(t *testing.T) {
+	dir := t.TempDir()
+	runGit(t, dir, "init")
+
+	files, err := DiffFileNames(dir)
+	require.NoError(t, err)
+	assert.Nil(t, files)
+}
+
+func TestDiffFile_ReturnsSingleFileDiff(t *testing.T) {
+	dir := t.TempDir()
+	runGit(t, dir, "init")
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "a.txt"), []byte("aaa"), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "b.txt"), []byte("bbb"), 0644))
+	runGit(t, dir, "add", "a.txt", "b.txt")
+
+	diff, err := DiffFile(dir, "a.txt")
+	require.NoError(t, err)
+	assert.Contains(t, diff, "aaa")
+	assert.NotContains(t, diff, "bbb")
+}

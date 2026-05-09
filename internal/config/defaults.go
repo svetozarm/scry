@@ -2,8 +2,9 @@ package config
 
 // Defaults contains the built-in default configuration values.
 var Defaults = Config{
-	Provider: "bedrock",
-	ModelID:  "global.amazon.nova-2-lite-v1:0",
+	Provider:             "bedrock",
+	ModelID:              "global.amazon.nova-2-lite-v1:0",
+	DiffSummaryThreshold: 32000,
 	Prompt: `<type>(<scope>): <short summary>
 
 <optional body>

@@ -51,3 +51,26 @@ func Build(promptTemplate string, diff string, vars Vars, maxTokens int) (string
 	truncatedDiff := diff[:remaining] + "\n[diff truncated to fit context window]"
 	return expanded + "\n\n" + truncatedDiff, true
 }
+
+// SummaryPrompt returns a prompt asking the LLM to summarize a single file's diff.
+func SummaryPrompt(file, diff string) string {
+	return "Summarize the following changes to " + file + " in 2-3 concise sentences. Focus on what changed and why it matters. Output only the summary, nothing else.\n\n" + diff
+}
+
+// BuildFromSummaries assembles the final commit-generation prompt using
+// per-file summaries instead of the raw diff.
+func BuildFromSummaries(promptTemplate string, summaries map[string]string, vars Vars, maxTokens int) (string, bool) {
+	expanded := expandVars(promptTemplate, vars)
+
+	var sb strings.Builder
+	sb.WriteString("Per-file change summaries:\n")
+	for file, summary := range summaries {
+		sb.WriteString("\n## ")
+		sb.WriteString(file)
+		sb.WriteString("\n")
+		sb.WriteString(summary)
+		sb.WriteString("\n")
+	}
+
+	return Build(expanded+"\n\n"+sb.String(), "", Vars{}, maxTokens)
+}

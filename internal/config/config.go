@@ -11,10 +11,11 @@ import (
 
 // Config holds the application configuration loaded from YAML files.
 type Config struct {
-	Provider       string            `yaml:"provider"`
-	ModelID        string            `yaml:"model_id"`
-	Prompt         string            `yaml:"prompt"`
-	ProviderConfig map[string]string `yaml:"provider_config"`
+	Provider              string            `yaml:"provider"`
+	ModelID               string            `yaml:"model_id"`
+	Prompt                string            `yaml:"prompt"`
+	DiffSummaryThreshold  int               `yaml:"diff_summary_threshold"`
+	ProviderConfig        map[string]string `yaml:"provider_config"`
 }
 
 // ConfigParseError wraps YAML parse failures with the file path.
@@ -38,6 +39,9 @@ func merge(base, overlay Config) Config {
 	}
 	if overlay.Prompt != "" {
 		base.Prompt = overlay.Prompt
+	}
+	if overlay.DiffSummaryThreshold != 0 {
+		base.DiffSummaryThreshold = overlay.DiffSummaryThreshold
 	}
 	if overlay.ProviderConfig != nil {
 		merged := make(map[string]string, len(base.ProviderConfig)+len(overlay.ProviderConfig))

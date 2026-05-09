@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -412,4 +413,85 @@ func TestRunGenerate_Interactive_Cancel(t *testing.T) {
 	assert.Equal(t, 1, mp.spinnerCalls)
 	assert.Len(t, mp.messages, 1)
 	assert.Empty(t, mp.commitOutputs)
+}
+
+func TestRunGenerate_LargeDiff_UsesSummarization(t *testing.T) {
+	// Track all invocations to verify two-pass behavior
+	var invocations []string
+	callCount := 0
+	mock := &mockProvider{maxTok: 128000}
+	registerMockProvider(mock)
+
+	// Override Invoke to track calls
+	origInvoke := mock.invokeResult
+	_ = origInvoke
+	provider.Register("mock", func(_ map[string]string) (provider.Provider, error) {
+		return &summaryMockProvider{invocations: &invocations, callCount: &callCount}, nil
+	})
+
+	dir := t.TempDir()
+	cmds := [][]string{
+		{"git", "init"},
+		{"git", "config", "user.email", "test@test.com"},
+		{"git", "config", "user.name", "Test User"},
+	}
+	for _, args := range cmds {
+		c := exec.Command(args[0], args[1:]...)
+		c.Dir = dir
+		require.NoError(t, c.Run())
+	}
+
+	// Create two files with enough content to exceed threshold
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "big1.txt"), []byte(strings.Repeat("x", 500)), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "big2.txt"), []byte(strings.Repeat("y", 500)), 0644))
+	c := exec.Command("git", "add", ".")
+	c.Dir = dir
+	require.NoError(t, c.Run())
+
+	// Config with a very low threshold to trigger summarization
+	cfgDir := filepath.Join(dir, ".scry")
+	require.NoError(t, os.MkdirAll(cfgDir, 0755))
+	cfgContent := "provider: mock\nmodel_id: test-model\ndiff_summary_threshold: 10\nprompt: \"Generate commit\"\n"
+	require.NoError(t, os.WriteFile(filepath.Join(cfgDir, "config.yaml"), []byte(cfgContent), 0644))
+
+	var stdout bytes.Buffer
+	rootCmd.SetOut(&stdout)
+	rootCmd.SetArgs([]string{"--non-interactive", "--config", filepath.Join(cfgDir, "config.yaml")})
+
+	origDir, _ := os.Getwd()
+	require.NoError(t, os.Chdir(dir))
+	defer os.Chdir(origDir)
+
+	nonInteractive = true
+	defer func() { nonInteractive = false }()
+
+	err := rootCmd.Execute()
+	require.NoError(t, err)
+
+	// Should have 2 summary calls (one per file) + 1 final commit generation = 3 total
+	assert.Equal(t, 3, *&callCount, "expected 3 LLM invocations (2 summaries + 1 final)")
+	assert.Contains(t, stdout.String(), "final-commit-message")
+}
+
+// summaryMockProvider tracks invocations for the summarization test.
+type summaryMockProvider struct {
+	invocations *[]string
+	callCount   *int
+}
+
+func (s *summaryMockProvider) Invoke(_ context.Context, _ string, prompt string) (string, error) {
+	*s.invocations = append(*s.invocations, prompt)
+	*s.callCount++
+	if strings.Contains(prompt, "Summarize the following changes") {
+		return "summary of changes", nil
+	}
+	return "final-commit-message", nil
+}
+
+func (s *summaryMockProvider) ListModels(_ context.Context) ([]provider.Model, error) {
+	return nil, nil
+}
+
+func (s *summaryMockProvider) MaxTokens(_ string) int {
+	return 128000
 }

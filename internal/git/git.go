@@ -37,6 +37,32 @@ func Diff(dir string) (string, error) {
 	return string(out), nil
 }
 
+// DiffFileNames returns the list of staged file paths.
+func DiffFileNames(dir string) ([]string, error) {
+	cmd := exec.Command("git", "diff", "--cached", "--name-only")
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+	raw := strings.TrimSpace(string(out))
+	if raw == "" {
+		return nil, nil
+	}
+	return strings.Split(raw, "\n"), nil
+}
+
+// DiffFile returns the staged diff for a single file.
+func DiffFile(dir, file string) (string, error) {
+	cmd := exec.Command("git", "diff", "--cached", "--", file)
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return string(out), nil
+}
+
 func EnsureStagedChanges(dir string) error {
 	cmd := exec.Command("git", "diff", "--cached", "--quiet")
 	cmd.Dir = dir

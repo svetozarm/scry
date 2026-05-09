@@ -73,3 +73,26 @@ func TestBuild_ExpandsVars(t *testing.T) {
 	payload, _ := Build("on {{branch_name}} by {{author}}", "diff", Vars{BranchName: "main", Author: "Jane"}, 0)
 	assert.Equal(t, "on main by Jane\n\ndiff", payload)
 }
+
+func TestSummaryPrompt_ContainsFileAndDiff(t *testing.T) {
+	p := SummaryPrompt("main.go", "+func main() {}")
+	assert.Contains(t, p, "main.go")
+	assert.Contains(t, p, "+func main() {}")
+}
+
+func TestBuildFromSummaries_AssemblesPayload(t *testing.T) {
+	summaries := map[string]string{
+		"a.go": "Added new handler",
+	}
+	payload, truncated := BuildFromSummaries("Generate commit", summaries, Vars{BranchName: "main"}, 0)
+	assert.False(t, truncated)
+	assert.Contains(t, payload, "Generate commit")
+	assert.Contains(t, payload, "## a.go")
+	assert.Contains(t, payload, "Added new handler")
+}
+
+func TestBuildFromSummaries_ExpandsVars(t *testing.T) {
+	summaries := map[string]string{"f.go": "change"}
+	payload, _ := BuildFromSummaries("on {{branch_name}} by {{author}}", summaries, Vars{BranchName: "dev", Author: "Jo"}, 0)
+	assert.Contains(t, payload, "on dev by Jo")
+}
