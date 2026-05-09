@@ -16,6 +16,7 @@ import (
 	"github.com/svetozarm/scry/internal/git"
 	"github.com/svetozarm/scry/internal/provider"
 	"github.com/svetozarm/scry/internal/ui"
+	"github.com/svetozarm/scry/internal/update"
 )
 
 func captureStderr(t *testing.T, fn func()) string {
@@ -46,6 +47,11 @@ func TestHandleError_ExitCodes(t *testing.T) {
 		{"ErrTimeout", provider.ErrTimeout, 3},
 		{"ErrModelNotFound", provider.ErrModelNotFound, 3},
 		{"ConfigParseError", &config.ConfigParseError{Path: "f", Message: "bad"}, 4},
+		{"ErrUpdateAPI", update.ErrUpdateAPI, 5},
+		{"ErrChecksumMismatch", update.ErrChecksumMismatch, 5},
+		{"ErrAssetNotFound", update.ErrAssetNotFound, 5},
+		{"ErrPermission", update.ErrPermission, 5},
+		{"ErrReplaceFailed", update.ErrReplaceFailed, 5},
 		{"UnknownError", fmt.Errorf("something broke"), 1},
 	}
 
@@ -78,6 +84,11 @@ func TestHandleError_NonInteractive_PlainMessages(t *testing.T) {
 		{"ErrTimeout", provider.ErrTimeout, "request timed out"},
 		{"ErrModelNotFound", provider.ErrModelNotFound, "model not found"},
 		{"ConfigParseError", &config.ConfigParseError{Path: "config.yaml", Message: "bad yaml"}, "invalid config config.yaml: bad yaml"},
+		{"ErrUpdateAPI", update.ErrUpdateAPI, "could not reach GitHub"},
+		{"ErrChecksumMismatch", update.ErrChecksumMismatch, "integrity check failed"},
+		{"ErrAssetNotFound", update.ErrAssetNotFound, "no release asset found for your platform"},
+		{"ErrPermission", update.ErrPermission, "cannot write to binary location"},
+		{"ErrReplaceFailed", update.ErrReplaceFailed, "could not replace binary"},
 		{"UnknownError", fmt.Errorf("something broke"), "something broke"},
 	}
 
