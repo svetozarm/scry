@@ -81,6 +81,16 @@ Generates a commit message from staged changes. Runs the interactive loop: gener
 
 Lists available models from the configured provider.
 
+### `scry update`
+
+Self-updates scry to the latest GitHub release. Downloads the appropriate binary for your OS/architecture, verifies the SHA-256 checksum, and replaces the current binary atomically.
+
+```bash
+scry update
+```
+
+If you're already on the latest version, it reports that and exits. Development builds (without an embedded version) skip the update with a warning.
+
 ## Flags
 
 | Flag | Description |
