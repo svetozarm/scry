@@ -16,6 +16,8 @@ internal/provider/
   ollama/
     ollama.go           # Ollama implementation of Provider
     ollama_test.go      # Unit tests (httptest server)
+  testprovider/
+    testprovider.go     # Test helper provider for integration tests
 ```
 
 ## Provider Interface
@@ -41,9 +43,8 @@ type Model struct {
 ## Factory
 
 ```go
-// New creates a Provider from the config. Returns ErrUnknownProvider if
-// the provider name is not registered.
-func New(providerName string, providerConfig map[string]string) (Provider, error)
+// New creates a Provider by looking up the named factory in the registry.
+func New(name string, config map[string]string) (Provider, error)
 ```
 
 Internally uses a registry map populated via `Register()` calls from provider `init()` functions:
@@ -55,34 +56,36 @@ var registry = map[string]FactoryFunc{}
 func Register(name string, factory FactoryFunc)
 ```
 
-The Bedrock provider registers itself in its `init()` function. New providers are added by calling `Register` — no modification to existing code (Open/Closed Principle). The Ollama provider follows the same pattern.
+Both the Bedrock and Ollama providers register themselves in their `init()` functions. New providers are added by calling `Register` — no modification to existing code (Open/Closed Principle).
 
 ## Error Types
 
 ```go
 var (
-    ErrAuth          // Authentication or authorisation failure
-    ErrRateLimit     // Throttling / rate limit
-    ErrTimeout       // Request timed out
-    ErrModelNotFound // Model ID not recognised by provider
+    ErrAuth            // Authentication or authorisation failure
+    ErrRateLimit       // Throttling / rate limit
+    ErrTimeout         // Request timed out
+    ErrModelNotFound   // Model ID not recognised by provider
     ErrUnknownProvider // Provider name not in registry
 )
 ```
 
-Each provider implementation is responsible for mapping SDK-specific errors to these types using `errors.Is` / `errors.As` wrapping.
+Each provider implementation is responsible for mapping SDK-specific errors to these types using `fmt.Errorf("%w: %v", ...)` wrapping.
 
 ## Bedrock Implementation
 
 - Uses `github.com/aws/aws-sdk-go-v2` with `config.LoadDefaultConfig()`.
-- `region` is read from `providerConfig["region"]`.
+- `region` is read from `providerConfig["region"]`, defaulting to `"us-east-1"`.
 - `Invoke` calls the Bedrock **Converse** API (`bedrockruntime.Converse`) with the prompt as a user message.
 - `ListModels` calls `bedrock.ListFoundationModels`.
+- Uses internal interfaces (`converseAPI`, `listModelsAPI`) for testability.
 - Error mapping:
   - `AccessDeniedException`, credential errors → `ErrAuth`
   - `ThrottlingException` → `ErrRateLimit`
   - `ServiceUnavailableException` → `ErrRateLimit`
   - Context deadline exceeded → `ErrTimeout`
-  - `ValidationException` with model not found → `ErrModelNotFound`
+  - `ValidationException` with "model" in message → `ErrModelNotFound`
+  - Error message containing "credential" → `ErrAuth`
 
 ## MaxTokens
 
@@ -111,16 +114,13 @@ Falls back to 128,000 for unknown models.
 
 ## Testing Strategy
 
-- Mock the AWS SDK clients using interfaces.
+- Mock the AWS SDK clients using interfaces (`converseAPI`, `listModelsAPI`).
 - Test error classification for each SDK error type.
 - Test that `providerConfig` values are correctly applied.
+- Ollama tests use `net/http/httptest` server.
 
 ## Dependencies
 
 - `github.com/aws/aws-sdk-go-v2/config`
 - `github.com/aws/aws-sdk-go-v2/service/bedrockruntime` (Converse API)
 - `github.com/aws/aws-sdk-go-v2/service/bedrock` (ListFoundationModels)
-
-## Relevant Requirements
-
-REQ-U-004, REQ-U-006, REQ-O-001, REQ-X-001, REQ-X-002, REQ-X-003, REQ-X-004

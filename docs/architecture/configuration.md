@@ -17,10 +17,12 @@ internal/config/
 
 ```go
 type Config struct {
-    Provider       string            `yaml:"provider"`
-    ModelID        string            `yaml:"model_id"`
-    Prompt         string            `yaml:"prompt"`
-    ProviderConfig map[string]string `yaml:"provider_config"`
+    Provider             string            `yaml:"provider"`
+    ModelID              string            `yaml:"model_id"`
+    Prompt               string            `yaml:"prompt"`
+    DiffSummaryThreshold int               `yaml:"diff_summary_threshold"`
+    SummaryConcurrency   int               `yaml:"summary_concurrency"`
+    ProviderConfig       map[string]string `yaml:"provider_config"`
 }
 ```
 
@@ -40,14 +42,25 @@ For each field, the first non-zero value found wins. This is a field-level merge
 
 ```go
 var Defaults = Config{
-    Provider: "bedrock",
-    ModelID:  "global.amazon.nova-2-lite-v1:0",
-    Prompt:   "<type>(<scope>): <short summary>...",  // conventional commit format instructions
+    Provider:             "bedrock",
+    ModelID:              "openai.gpt-oss-20b-1:0",
+    DiffSummaryThreshold: 32000,
+    SummaryConcurrency:   20,
+    Prompt:               "<type>(<scope>): <short summary>...",  // conventional commit format instructions
     ProviderConfig: map[string]string{
         "region": "us-east-1",
     },
 }
 ```
+
+| Field | Default | Description |
+|---|---|---|
+| `provider` | `"bedrock"` | LLM provider to use |
+| `model_id` | `"openai.gpt-oss-20b-1:0"` | Model ID to invoke |
+| `prompt` | Conventional commit template | Prompt template with `{{branch_name}}` and `{{author}}` variables |
+| `diff_summary_threshold` | `32000` | Byte threshold above which per-file summarization is used |
+| `summary_concurrency` | `20` | Number of concurrent workers for per-file summarization |
+| `provider_config.region` | `"us-east-1"` | AWS region for Bedrock API calls |
 
 Provider-specific keys in `ProviderConfig`:
 
@@ -65,6 +78,10 @@ Provider-specific keys in `ProviderConfig`:
 func Load(overridePath, cwd, homeDir string) (*Config, error)
 ```
 
+## Merge Logic
+
+The `merge` function applies overlay fields on top of a base config. For scalar fields, a non-zero overlay value wins. For `ProviderConfig` (map), keys are merged with overlay winning on conflicts.
+
 ## Validation
 
 - YAML parse errors include the file path in the error message. `yaml.v3` provides parse details via `yaml.TypeError`.
@@ -77,8 +94,5 @@ func Load(overridePath, cwd, homeDir string) (*Config, error)
 ## Dependencies
 
 - `gopkg.in/yaml.v3`
-- `os` (file reading, home dir)
-
-## Relevant Requirements
-
-REQ-U-003, REQ-U-006, REQ-X-006
+- `os` (file reading)
+- `path/filepath`

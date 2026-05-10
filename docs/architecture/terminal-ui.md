@@ -2,13 +2,13 @@
 
 ## Responsibility
 
-All terminal rendering: styled output, spinner during LLM inference, interactive prompts, error display, and non-interactive plain output mode.
+All terminal rendering: styled output, spinner during LLM inference, progress bar for per-file summarization, interactive prompts, error display, and non-interactive plain output mode.
 
 ## Package Structure
 
 ```
 internal/ui/
-  ui.go          # Public API: DisplayMessage, DisplayError, DisplayWarning, DisplayCommitResult, DisplayModels
+  ui.go          # Public API: DisplayMessage, DisplayError, DisplayWarning, DisplayProgressBar, DisplayCommitResult, DisplayModels
   spinner.go     # WithSpinner helper
   prompt.go      # PromptAction (accept/regenerate/cancel)
   prompter.go    # Prompter interface and DefaultPrompter for testability
@@ -28,10 +28,13 @@ func DisplayError(err error)
 // DisplayWarning renders a styled warning (e.g., truncation notice).
 func DisplayWarning(msg string)
 
-// DisplayCommitResult renders the git commit output with styling.
+// DisplayProgressBar renders an inline progress bar showing per-file summary progress.
+func DisplayProgressBar(completed, total int, lastFile string)
+
+// DisplayCommitResult renders the git commit output with a success indicator.
 func DisplayCommitResult(output string)
 
-// DisplayModels renders the model list as a styled table.
+// DisplayModels renders the model list with styling.
 func DisplayModels(models []provider.Model)
 
 // WithSpinner runs fn while displaying an inline spinner. Returns fn's result.
@@ -65,15 +68,17 @@ type DefaultPrompter struct{}
 
 ## Non-Interactive Mode
 
-When non-interactive mode is active, the UI module is bypassed entirely by the CLI layer. The CLI writes the raw message to stdout via `fmt.Println` — no Charm libraries involved.
+When non-interactive mode is active, the UI module is bypassed entirely by the CLI layer. The CLI writes the raw message to stdout via `fmt.Fprintln` — no Charm libraries involved. Progress and warnings go to stderr as plain text.
 
 ## Styling (Lip Gloss)
 
-- Commit message: bordered box with accent color
-- Errors: red foreground, bold
-- Warnings: yellow foreground
-- Spinner: inline (not full-screen), using Charm's `spinner` package
-- Model list: table with columns for ID and Name
+- Commit message: bordered box with rounded border, accent color (color 39)
+- Headers: bold, accent color (color 39)
+- Errors: red foreground (color 196), bold
+- Warnings: yellow/orange foreground (color 214)
+- Success: green foreground (color 82)
+- Model list: header + faint-styled model names
+- Progress bar: inline `█░` bar with file count and last completed filename
 
 ## Interactive Prompt (Huh)
 
@@ -94,7 +99,3 @@ huh.NewSelect[Action]().
 - `charm.land/lipgloss/v2`
 - `charm.land/huh/v2`
 - `charm.land/huh/v2/spinner`
-
-## Relevant Requirements
-
-REQ-U-002, REQ-E-003, REQ-E-007, REQ-S-001, REQ-NF-001
