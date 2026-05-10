@@ -4,7 +4,10 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"context"
+	"crypto/ecdsa"
+	"crypto/rand"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"os"
@@ -51,6 +54,7 @@ func TestRun_PermissionDenied(t *testing.T) {
 		release: &Release{Tag: "v2.0.0", Assets: []Asset{
 			{Name: assetName, URL: "http://example.com/archive"},
 			{Name: "checksums.txt", URL: "http://example.com/checksums"},
+			{Name: "checksums.txt.sig", URL: "http://example.com/checksums.sig"},
 		}},
 	}
 	// Use a non-writable path to trigger permission error
@@ -72,6 +76,12 @@ func TestRun_PermissionDenied(t *testing.T) {
 func TestRun_FullPipeline(t *testing.T) {
 	dir := t.TempDir()
 
+	// Generate test key pair and override embedded key
+	privKey, pubPEM := generateTestKeyPair(t)
+	origKey := cosignPubKey
+	cosignPubKey = pubPEM
+	t.Cleanup(func() { cosignPubKey = origKey })
+
 	// Create a fake binary to replace
 	binaryPath := filepath.Join(dir, "scry")
 	os.WriteFile(binaryPath, []byte("old binary"), 0755)
@@ -87,10 +97,17 @@ func TestRun_FullPipeline(t *testing.T) {
 	hashHex := hex.EncodeToString(hash[:])
 	checksumsContent := fmt.Sprintf("%s  %s\n", hashHex, assetName)
 
+	// Sign the checksums
+	checksumsDigest := sha256.Sum256([]byte(checksumsContent))
+	sigBytes, err := ecdsa.SignASN1(rand.Reader, privKey, checksumsDigest[:])
+	require.NoError(t, err)
+	sigB64 := base64.StdEncoding.EncodeToString(sigBytes)
+
 	checker := &mockChecker{
 		release: &Release{Tag: "v2.0.0", Assets: []Asset{
 			{Name: assetName, URL: "http://example.com/archive"},
 			{Name: "checksums.txt", URL: "http://example.com/checksums"},
+			{Name: "checksums.txt.sig", URL: "http://example.com/checksums.sig"},
 		}},
 		downloadFn: func(ctx context.Context, url string, dest string) error {
 			switch filepath.Base(dest) {
@@ -98,6 +115,8 @@ func TestRun_FullPipeline(t *testing.T) {
 				return os.WriteFile(dest, archiveContent, 0644)
 			case "checksums.txt":
 				return os.WriteFile(dest, []byte(checksumsContent), 0644)
+			case "checksums.txt.sig":
+				return os.WriteFile(dest, []byte(sigB64), 0644)
 			}
 			return nil
 		},

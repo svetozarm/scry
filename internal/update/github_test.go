@@ -113,12 +113,18 @@ func TestLatestRelease_CancelledContext(t *testing.T) {
 
 func TestDownloadAsset_Success(t *testing.T) {
 	content := []byte("binary content here 1234567890")
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write(content)
 	}))
 	defer srv.Close()
 
+	// Temporarily allow test server host
+	origHosts := allowedDownloadHosts
+	allowedDownloadHosts = append(allowedDownloadHosts, "127.0.0.1")
+	defer func() { allowedDownloadHosts = origHosts }()
+
 	client := NewGitHubClient("owner/repo")
+	client.httpClient = srv.Client()
 	dest := filepath.Join(t.TempDir(), "downloaded_file")
 
 	err := client.DownloadAsset(context.Background(), srv.URL+"/asset.tar.gz", dest)
@@ -130,12 +136,17 @@ func TestDownloadAsset_Success(t *testing.T) {
 }
 
 func TestDownloadAsset_Non200(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	}))
 	defer srv.Close()
 
+	origHosts := allowedDownloadHosts
+	allowedDownloadHosts = append(allowedDownloadHosts, "127.0.0.1")
+	defer func() { allowedDownloadHosts = origHosts }()
+
 	client := NewGitHubClient("owner/repo")
+	client.httpClient = srv.Client()
 	dest := filepath.Join(t.TempDir(), "downloaded_file")
 
 	err := client.DownloadAsset(context.Background(), srv.URL+"/missing", dest)
@@ -147,12 +158,17 @@ func TestDownloadAsset_Non200(t *testing.T) {
 }
 
 func TestDownloadAsset_CancelledContext(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("data"))
 	}))
 	defer srv.Close()
 
+	origHosts := allowedDownloadHosts
+	allowedDownloadHosts = append(allowedDownloadHosts, "127.0.0.1")
+	defer func() { allowedDownloadHosts = origHosts }()
+
 	client := NewGitHubClient("owner/repo")
+	client.httpClient = srv.Client()
 	dir := t.TempDir()
 	dest := filepath.Join(dir, "downloaded_file")
 
@@ -170,7 +186,7 @@ func TestDownloadAsset_CancelledContext(t *testing.T) {
 
 func TestDownloadAsset_InterruptedMidTransfer(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.(http.Flusher).Flush()
 		// Cancel context while transfer is in progress
@@ -178,7 +194,12 @@ func TestDownloadAsset_InterruptedMidTransfer(t *testing.T) {
 	}))
 	defer srv.Close()
 
+	origHosts := allowedDownloadHosts
+	allowedDownloadHosts = append(allowedDownloadHosts, "127.0.0.1")
+	defer func() { allowedDownloadHosts = origHosts }()
+
 	client := NewGitHubClient("owner/repo")
+	client.httpClient = srv.Client()
 	dir := t.TempDir()
 	dest := filepath.Join(dir, "downloaded_file")
 

@@ -53,6 +53,8 @@ func mapError(err error) errorMapping {
 		return errorMapping{"update failed: could not reach GitHub — check your network connection", 5}
 	case errors.Is(err, update.ErrChecksumMismatch):
 		return errorMapping{"update aborted: integrity check failed — downloaded file is corrupted", 5}
+	case errors.Is(err, update.ErrSignatureInvalid):
+		return errorMapping{"update aborted: signature verification failed — release may be tampered with", 5}
 	case errors.Is(err, update.ErrAssetNotFound):
 		return errorMapping{"update failed: no release asset found for your platform (" + runtime.GOOS + "/" + runtime.GOARCH + ")", 5}
 	case errors.Is(err, update.ErrPermission):

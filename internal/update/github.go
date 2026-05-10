@@ -6,12 +6,23 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	neturl "net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
 const defaultBaseURL = "https://api.github.com"
+
+// maxDownloadSize is the maximum allowed download size (50 MB).
+const maxDownloadSize = 50 * 1024 * 1024
+
+// allowedDownloadHosts are the only hosts we'll download release assets from.
+var allowedDownloadHosts = []string{
+	"github.com",
+	"objects.githubusercontent.com",
+}
 
 // Release represents a GitHub release with its tag and downloadable assets.
 type Release struct {
@@ -85,6 +96,10 @@ func (c *GitHubClient) LatestRelease(ctx context.Context) (*Release, error) {
 }
 
 func (c *GitHubClient) DownloadAsset(ctx context.Context, url string, dest string) error {
+	if !isAllowedURL(url) {
+		return fmt.Errorf("%w: untrusted download host: %s", ErrUpdateAPI, url)
+	}
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrUpdateAPI, err)
@@ -107,10 +122,17 @@ func (c *GitHubClient) DownloadAsset(ctx context.Context, url string, dest strin
 	}
 	tmpPath := tmp.Name()
 
-	if _, err := io.Copy(tmp, resp.Body); err != nil {
+	limited := io.LimitReader(resp.Body, maxDownloadSize+1)
+	n, err := io.Copy(tmp, limited)
+	if err != nil {
 		tmp.Close()
 		os.Remove(tmpPath)
 		return fmt.Errorf("%w: %v", ErrUpdateAPI, err)
+	}
+	if n > maxDownloadSize {
+		tmp.Close()
+		os.Remove(tmpPath)
+		return fmt.Errorf("%w: download exceeds maximum size", ErrUpdateAPI)
 	}
 
 	if err := tmp.Close(); err != nil {
@@ -124,4 +146,18 @@ func (c *GitHubClient) DownloadAsset(ctx context.Context, url string, dest strin
 	}
 
 	return nil
+}
+
+func isAllowedURL(rawURL string) bool {
+	parsed, err := neturl.Parse(rawURL)
+	if err != nil || parsed.Scheme != "https" {
+		return false
+	}
+	host := parsed.Hostname()
+	for _, allowed := range allowedDownloadHosts {
+		if host == allowed || strings.HasSuffix(host, "."+allowed) {
+			return true
+		}
+	}
+	return false
 }
