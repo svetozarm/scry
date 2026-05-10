@@ -7,6 +7,8 @@ import (
 	_ "github.com/svetozarm/scry/internal/provider/ollama"
 )
 
+var Version string
+
 var (
 	nonInteractive bool
 	configPath     string

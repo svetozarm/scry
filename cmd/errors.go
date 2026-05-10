@@ -4,12 +4,14 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/svetozarm/scry/internal/config"
 	"github.com/svetozarm/scry/internal/git"
 	"github.com/svetozarm/scry/internal/provider"
 	"github.com/svetozarm/scry/internal/ui"
+	"github.com/svetozarm/scry/internal/update"
 )
 
 // silentError wraps an error so Cobra won't print it again.
@@ -47,6 +49,18 @@ func mapError(err error) errorMapping {
 		return errorMapping{"model not found — check your model_id in config", 3}
 	case errors.As(err, new(*config.ConfigParseError)):
 		return errorMapping{err.Error(), 4}
+	case errors.Is(err, update.ErrUpdateAPI):
+		return errorMapping{"update failed: could not reach GitHub — check your network connection", 5}
+	case errors.Is(err, update.ErrChecksumMismatch):
+		return errorMapping{"update aborted: integrity check failed — downloaded file is corrupted", 5}
+	case errors.Is(err, update.ErrSignatureInvalid):
+		return errorMapping{"update aborted: signature verification failed — release may be tampered with", 5}
+	case errors.Is(err, update.ErrAssetNotFound):
+		return errorMapping{"update failed: no release asset found for your platform (" + runtime.GOOS + "/" + runtime.GOARCH + ")", 5}
+	case errors.Is(err, update.ErrPermission):
+		return errorMapping{"update failed: cannot write to binary location — try running with elevated privileges", 5}
+	case errors.Is(err, update.ErrReplaceFailed):
+		return errorMapping{"update failed: could not replace binary — try manual replacement", 5}
 	default:
 		return errorMapping{sanitizeError(err), 1}
 	}

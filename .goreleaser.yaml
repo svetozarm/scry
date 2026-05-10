@@ -13,7 +13,7 @@ builds:
       - amd64
       - arm64
     ldflags:
-      - -s -w
+      - -s -w -X main.version={{.Tag}}
 
 archives:
   - formats:
@@ -26,6 +26,17 @@ archives:
 
 checksum:
   name_template: checksums.txt
+
+signs:
+  - cmd: cosign
+    artifacts: checksum
+    signature: "${artifact}.sig"
+    args:
+      - "sign-blob"
+      - "--key=env://COSIGN_PRIVATE_KEY"
+      - "--yes"
+      - "--output-signature=${signature}"
+      - "${artifact}"
 
 changelog:
   sort: asc

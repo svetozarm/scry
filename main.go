@@ -7,7 +7,10 @@ import (
 	"github.com/svetozarm/scry/cmd"
 )
 
+var version string
+
 func main() {
+	cmd.Version = version
 	if err := cmd.Execute(); err != nil {
 		var se interface{ ExitCode() int }
 		if errors.As(err, &se) {
