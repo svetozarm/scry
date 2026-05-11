@@ -42,7 +42,7 @@ Scry loads configuration from YAML files with three-tier precedence (plus an exp
 Fields are merged individually: a partial local config fills missing fields from global, then from defaults.
 
 ```yaml
-# Provider to use ("bedrock" or "ollama")
+# Provider to use ("bedrock", "ollama", or "openrouter")
 provider: bedrock
 
 # Model ID to invoke
@@ -130,6 +130,35 @@ provider_config:
 ```
 
 The `endpoint` defaults to `http://localhost:11434` and can be omitted if Ollama is running on the default address.
+
+### OpenRouter
+
+Scry supports [OpenRouter](https://openrouter.ai/) for access to many hosted models through a single API. Create an API key in OpenRouter, then export it before running Scry:
+
+```bash
+export OPENROUTER_API_KEY=...
+```
+
+Configure Scry to use OpenRouter:
+
+```yaml
+provider: openrouter
+model_id: openai/gpt-5.2
+provider_config:
+  endpoint: https://openrouter.ai/api/v1
+  site_url: https://github.com/svetozarm/scry
+  app_name: Scry
+  max_context_tokens: "128000"
+  max_completion_tokens: "2048"
+  reasoning_effort: none
+  reasoning_exclude: "true"
+```
+
+The `endpoint`, `site_url`, `app_name`, `max_context_tokens`, `max_completion_tokens`, `reasoning_effort`, `reasoning_max_tokens`, `reasoning_exclude`, and `reasoning_enabled` fields are optional. The endpoint defaults to `https://openrouter.ai/api/v1`.
+
+OpenRouter models have different context window sizes. Scry uses `max_context_tokens` to decide how much diff content to include before truncating or summarizing. If your selected model has a smaller context window, set `max_context_tokens` to match that model.
+
+Some OpenRouter models support reasoning or thinking tokens. For commit message generation, you usually want the model to return a concise final answer rather than spend output tokens on reasoning. Use `reasoning_effort: none` to disable reasoning where supported and `reasoning_exclude: "true"` to omit reasoning tokens from the response. Thinking models may also need a larger `max_completion_tokens` value, such as `2048` or `4096`; if Scry reports an empty OpenRouter response with `finish_reason: length`, the model exhausted its output budget before producing final content.
 
 ## Cost
 
