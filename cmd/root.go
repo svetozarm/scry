@@ -5,6 +5,7 @@ import (
 
 	_ "github.com/svetozarm/scry/internal/provider/bedrock"
 	_ "github.com/svetozarm/scry/internal/provider/ollama"
+	_ "github.com/svetozarm/scry/internal/provider/openrouter"
 )
 
 var Version string
