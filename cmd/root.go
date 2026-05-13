@@ -29,6 +29,15 @@ func init() {
 	rootCmd.AddCommand(listModelsCmd)
 }
 
+func SetVersion(v string) {
+	Version = v
+	if v == "" {
+		rootCmd.Version = "dev"
+	} else {
+		rootCmd.Version = v
+	}
+}
+
 func Execute() error {
 	return rootCmd.Execute()
 }
